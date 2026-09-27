@@ -1,0 +1,40 @@
+-- Battle Scope Reset
+
+-- Select your configured project database before running this script.
+USE [YOUR_DATABASE_NAME];
+GO
+
+DELETE R
+FROM dbo.BattlePokemonReveals R
+JOIN dbo.BattlePokemon P ON P.BattlePokemonId = R.BattlePokemonId;
+
+DELETE SC
+FROM dbo.SetCandidates SC
+JOIN dbo.BattlePokemon P ON P.BattlePokemonId = SC.BattlePokemonId;
+
+UPDATE dbo.BattleEvents
+SET SourceBattlePokemonId = NULL,
+    TargetBattlePokemonId = NULL;
+
+DELETE FROM dbo.BattlePokemon;
+
+DELETE FROM dbo.BattleSides;
+
+-- python populate_battle_entities_v2.py replace
+
+-- python init_set_candidates.py replace
+
+EXEC dbo.ApplySetCandidateEliminations_All;
+
+EXEC dbo.MarkSuspiciousMoves_All;
+
+
+-- Verify
+SELECT
+  BP.Side, BP.Slot, BP.Species,
+  SUM(CASE WHEN SC.IsEliminated = 0 THEN 1 ELSE 0 END) AS Remaining,
+  COUNT(*) AS Total
+FROM dbo.SetCandidates SC
+JOIN dbo.BattlePokemon BP ON BP.BattlePokemonId = SC.BattlePokemonId
+GROUP BY BP.Side, BP.Slot, BP.Species
+ORDER BY BP.Side, BP.Slot;
